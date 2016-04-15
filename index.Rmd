@@ -1,10 +1,87 @@
 ---
 title: "Practical Machine Learning Course Project"
 author: "Aurelio Moya Garcia"
-date: "16 March 2016"
+date: "15 April 2016"
 output: html_document
 ---
 
+# Introduction
+In this project we will analyse data from a quantified self project, in which 6 participants try to quantify how well do they perform an activity rather than how much of the activity they do.
+Participants  were asked to perform barbell lifts correctly and incorrectly in 5 different ways, and data from accelerometers on the belt, forearm, arm, and dumbell were recorded. See more info on the [Weight Lifting Exercise Dataset.](http://groupware.les.inf.puc-rio.br/har)
+
+We will use the [training dataset from here](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv) and the [testing dataset from here.](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv)
+
+We will predict the manner in which they did the exercise, through analysing the "classe" variable in the training set, and use a prediction model to predict 20 different test cases. 
+
+# Get and clean the data
+## 1. Data sources
+```{r}
+f.training <- 'pml-training.csv'
+f.test     <- 'pml-test.csv'
+u.training  <- 'https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv'
+u.test      <- 'https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv'
+```
+## 2. Download the data
+```{r download, eval=FALSE}
+download.file(u.training, f.training, method='curl')
+download.file(u.test,     f.test,     method='curl')
+```
+## 3. Clean and preprocess the data
+Read and explore the datasets
+```{r}
+tr <- read.csv(f.training, na.strings = c("", "NA", "#DIV/0!"))
+te <- read.csv(f.test, na.strings = c("", "NA", "#DIV/0!"))
+```
+There are many empty variables (NA) and some variables that are clearly irrelevant. Remove these.
+```{r}
+d.tr <- tr[ , colSums(is.na(tr)) == 0]
+d.te <- te[, colSums(is.na(te)) == 0]
+d.tr <- d.tr[, -c(1:7)]
+d.te <- d.te[, -c(1:7)]
+```
+# Model building
+Slice the data into training and testing sets
+
+```{r}
+library(caret)
+set.seed(13579) 
+inTrain <- createDataPartition(d.tr$classe, p=0.70, list=F)
+training <- d.tr[inTrain, ]
+testing <- d.tr[-inTrain, ]
+```
+
+Use a tree to classify the data
+
+```{r}
+treeFit <- train(classe ~ .,method="rpart",data=training)
+print(treeFit$finalModel)
+```
+
+
+The decision tree is not so good.
+```{r}
+treePred <- predict(treeFit, type = "class")
+table(training$classe, treePred)
+```
+
+Let's have a look at a pruned version (the tree has too many nodes to be plotted with enough clarity)
+```{r}
+pruned.t <- prune.misclass(treefit, best = 10)
+plot(pruned.t)
+title(main = "Figure 1: Tree created using tree function")
+text(pruned.t, cex = 1.2)
+```
+
+```{r}
+good = table(treePred == training$classe)
+in.error = as.vector(100 * (1 - good["TRUE"]/sum(good)))
+```
+The in-sample error is **`r in.error` %**
+
+
+
+
+modFit <- train(classe~ .,data=training,method="rf",prox=TRUE)
 This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
 
 When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
