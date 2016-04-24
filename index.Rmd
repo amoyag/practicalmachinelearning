@@ -106,6 +106,12 @@ confusionMatrix(testing$classe, prf)
 
 Out of sample error now is `r (1 - as.numeric(confusionMatrix(testing$classe, prf)$overall[1]))*100`%.
 
+We can have a look at the most important variables to understand how the sensors measure the quality of barbell lifts.
+
+```{r}
+plot(varImp(mrf),top = 20)
+```
+
 ## 4. Prediction
 We'll use the random forest model to predict the 20 test cases.
 
