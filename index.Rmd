@@ -1,7 +1,7 @@
 ---
 title: "Practical Machine Learning Course Project"
 author: "Aurelio Moya Garcia"
-date: "15 April 2016"
+date: "20 April 2016"
 output: html_document
 ---
 
@@ -39,7 +39,7 @@ d.te <- te[, colSums(is.na(te)) == 0]
 d.tr <- d.tr[, -c(1:7)]
 d.te <- d.te[, -c(1:7)]
 ```
-# Model building
+### Model building
 Slice the data into training and testing sets
 
 ```{r}
@@ -57,43 +57,59 @@ treeFit <- train(classe ~ .,method="rpart",data=training)
 print(treeFit$finalModel)
 ```
 
+Let's have a look at the tree
+```{r}
+library(rattle)
+tree <- treeFit$finalModel
+fancyRpartPlot(treeFit$finalModel,sub = "", "Figure 1: Decision Tree")
+```
+
+
 
 The decision tree is not so good.
 ```{r}
-treePred <- predict(treeFit, type = "class")
+treePred <- predict(treeFit, type = "raw")
 table(training$classe, treePred)
 ```
 
-Let's have a look at a pruned version (the tree has too many nodes to be plotted with enough clarity)
-```{r}
-pruned.t <- prune.misclass(treefit, best = 10)
-plot(pruned.t)
-title(main = "Figure 1: Tree created using tree function")
-text(pruned.t, cex = 1.2)
-```
 
 ```{r}
 good = table(treePred == training$classe)
 in.error = as.vector(100 * (1 - good["TRUE"]/sum(good)))
 ```
-The in-sample error is **`r in.error` %**
+The in-sample error is `r round(in.error, digits=2) ` %
 
-
-
-
-modFit <- train(classe~ .,data=training,method="rf",prox=TRUE)
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
 
 ```{r}
-summary(cars)
+treePred2 <- predict(treeFit, newdata = testing, type = "raw")
+good.o = table(treePred2 == testing$classe)
+out.error = as.vector(100 * (1 - good.o["TRUE"]/sum(good.o)))
 ```
 
-You can also embed plots, for example:
+The error in the testing set is `r round(out.error, digits=2) ` %
 
-```{r, echo=FALSE}
-plot(cars)
+Let's try a random forest clasification. We'll get a better way to identify the important variables and high quality predictions. Using 10-fold cross validation.
+
+```{r}
+crf <- trainControl(method="cv", 10)
+mrf <- train(classe ~ ., data=training, method="rf", trControl=crf, ntree=100)
+mrf
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+The random forest classificator is much better
+
+```{r}
+prf <- predict(mrf, testing)
+confusionMatrix(testing$classe, prf)
+```
+
+Out of sample error now is `r (1 - as.numeric(confusionMatrix(testing$classe, prf)$overall[1]))*100`%.
+
+## 4. Prediction
+We'll use the random forest model to predict the 20 test cases.
+
+```{r}
+prediction <- predict(mrf, d.te)
+```
+The test cases will be classified as: `r prediction`
